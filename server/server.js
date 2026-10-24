@@ -18,7 +18,7 @@ const UPLOAD_DIR = path.join(DATA_DIR, "uploads");
 const CATALOG_PATH = path.join(DATA_DIR, "catalog.json");
 const PUBLISH_TOKEN = process.env.PUBLISH_TOKEN;
 const MAX_BYTES = Number(process.env.MAX_UPLOAD_BYTES || 268435456);
-const CONSOLES = new Set(["Game Boy", "Game Boy Color", "Game Boy Advance", "NES", "SNES", "Nintendo 64", "Nintendo DS", "Sega Master System", "Mega Drive / Genesis", "PlayStation", "PSP", "Other"]);
+const CONSOLES = new Set(["Game Boy", "Game Boy Color", "Game Boy Advance", "NES", "SNES", "Nintendo 64", "Nintendo DS", "Sega Master System", "Mega Drive / Genesis", "PlayStation", "PSP", "CHIP-8", "Other"]);
 
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 if (!fs.existsSync(CATALOG_PATH)) fs.writeFileSync(CATALOG_PATH, "[]\n");
@@ -56,7 +56,7 @@ const upload = multer({
   limits: { fileSize: MAX_BYTES, files: 1 },
   fileFilter: (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
-    const allowed = new Set([".gb", ".gbc", ".gba", ".nes", ".smc", ".sfc", ".n64", ".z64", ".v64", ".nds", ".iso", ".cue", ".bin", ".pbp", ".zip", ".7z", ".rom"]);
+    const allowed = new Set([".gb", ".gbc", ".gba", ".nes", ".smc", ".sfc", ".n64", ".z64", ".v64", ".nds", ".iso", ".cue", ".bin", ".pbp", ".ch8", ".c8", ".chip8", ".zip", ".7z", ".rom"]);
     if (!allowed.has(ext)) return cb(new Error("Unsupported file extension. Upload a supported homebrew ROM/archive."));
     cb(null, true);
   }
