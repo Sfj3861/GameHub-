@@ -76,7 +76,7 @@ app.get("/api/games", (_req, res) => {
 });
 
 app.post("/api/publish", requirePublisher, (req, res) => {
-  upload.single("rom")(req, res, (err) => {
+  upload.single("rom")(req, res, async (err) => {
     if (err) {
       const code = err.code === "LIMIT_FILE_SIZE" ? 413 : 400;
       return res.status(code).json({ error: err.message || "Upload failed." });
@@ -92,13 +92,19 @@ app.post("/api/publish", requirePublisher, (req, res) => {
       fs.rmSync(req.file.path, { force: true });
       return res.status(400).json({ error: "Title, supported console and confirmation that you have distribution rights are required." });
     }
-    const hash = crypto.createHash("sha256").update(fs.readFileSync(req.file.path)).digest("hex");
-    const game = {
-      id: crypto.randomUUID(), title, console: consoleName, author: author || "Unknown",
-      version, description, fileName: req.file.filename, originalFileName: safeName(req.file.originalname),
-      size: req.file.size, sha256: hash, publishedAt: new Date().toISOString()
-    };
     try {
+      const hash = await new Promise((resolve, reject) => {
+        const digest = crypto.createHash("sha256");
+        const stream = fs.createReadStream(req.file.path);
+        stream.on("data", chunk => digest.update(chunk));
+        stream.on("error", reject);
+        stream.on("end", () => resolve(digest.digest("hex")));
+      });
+      const game = {
+        id: crypto.randomUUID(), title, console: consoleName, author: author || "Unknown",
+        version, description, fileName: req.file.filename, originalFileName: safeName(req.file.originalname),
+        size: req.file.size, sha256: hash, publishedAt: new Date().toISOString()
+      };
       const catalog = readCatalog();
       catalog.unshift(game);
       writeCatalog(catalog);
