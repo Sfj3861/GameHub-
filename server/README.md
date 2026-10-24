@@ -6,7 +6,7 @@ Self-hosted API for publishing **homebrew ROMs that you own or are authorized to
 
 Requires Docker Engine and Docker Compose on a server with persistent storage. Put the server behind HTTPS using a reverse proxy (Caddy, Nginx, or your hosting platform); do not expose publisher credentials over plain HTTP.
 
-1. Copy `.env.example` to a secure environment file outside source control.
+1. Copy `.env.example` to `.env` inside the server folder, then keep `.env` out of version control.
 2. Set `PUBLISH_TOKEN` to a long random secret. Do not embed this token in a public APK.
 3. Run `docker compose up -d --build`.
 4. Check `https://your-host/health`.
