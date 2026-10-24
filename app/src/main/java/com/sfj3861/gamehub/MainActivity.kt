@@ -46,7 +46,7 @@ private val Muted = Color(0xFFB8B8D1)
 private val ConsoleOptions = listOf(
     "Game Boy", "Game Boy Color", "Game Boy Advance", "NES", "SNES",
     "Nintendo 64", "Nintendo DS", "Sega Master System", "Mega Drive / Genesis",
-    "PlayStation", "PSP", "Other"
+    "PlayStation", "PSP", "CHIP-8", "Other"
 )
 
 class MainActivity : ComponentActivity() {
