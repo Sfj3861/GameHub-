@@ -1,57 +1,45 @@
 # GameHub
 
-GameHub is an Android-first retro gaming hub with a custom visual identity, a local game-file library, and a planned homebrew catalogue called **Juegos**.
+GameHub is an Android-first retro gaming hub with a custom visual identity, a local game-file library, a cloud-connected homebrew catalogue called **Juegos**, and a publisher screen.
 
-## Current status: early prototype (0.1.0)
+## Current status: prototype 0.2.0
 
-The first Android project scaffold is now in place.
-
-### Included
-- Kotlin + Jetpack Compose Android application.
-- Custom purple/cyan GameHub launcher icon.
+### Implemented in the Android app
+- Kotlin + Jetpack Compose interface and custom purple/cyan launcher icon.
 - Navigation for Inicio, Biblioteca, Juegos, Descargas, and Ajustes.
-- Local file picker to add game files to the in-app library list.
-- Starter dark theme and responsive Compose layouts.
-- GitHub Actions workflow to build and upload a debug APK artifact.
+- Local file picker for adding files to the library list.
+- **Publicar** form: game title, console, author, version, description, ROM file, server URL, publisher token, and rights confirmation.
+- Multipart upload from Android to the cloud API over HTTPS.
+- Catalogue loading from the cloud API.
+- Download buttons using Android DownloadManager.
 
-### Not implemented yet
-- **Emulation engine:** importing a file currently adds it to the library; it does not run it. A compatible engine/core still needs to be selected and integrated.
-- **Store backend:** the Juegos screen is an honest placeholder. It does not yet download or install content.
-- Persistent library metadata, save states, controller mapping, and actual download management.
-- Release signing and a tested APK release.
+### Cloud API
+The self-hosted API is in [server/](server/README.md). It accepts authenticated ROM uploads, records metadata and a SHA-256 hash, exposes a public catalogue, and serves published files for download. It is designed for a server with persistent storage and HTTPS.
 
-## Build
+**The cloud is not live yet.** You must deploy the API to a server, configure a private publisher token, and enter the HTTPS server URL and token in the app's Publicar screen. The catalogue URL is entered in Juegos. Do not put a publisher token into a public APK; use this publishing form only in a private/admin build until individual publisher accounts or short-lived credentials are implemented.
+
+### Build Android APK
 
 Requirements: JDK 17 and Gradle 8.9.
-
-From the repository root:
 
 ```bash
 gradle assembleDebug
 ```
 
-The debug APK should be generated at:
+Output: `app/build/outputs/apk/debug/app-debug.apk`.
 
-```
-app/build/outputs/apk/debug/app-debug.apk
-```
+GitHub Actions is configured to build a debug APK and upload it as a workflow artifact. A successful build has not yet been confirmed from this development session.
 
-The GitHub Actions workflow runs the same build on pushes and pull requests to `main`. Once it succeeds, download the `gamehub-debug-apk` artifact from that workflow run.
+### Important limitations
+- **Emulation is not integrated yet:** importing a file does not run it. The compatible engine/core still needs to be selected and integrated.
+- The catalogue only supports the console labels listed in the server README.
+- The server stores files on its persistent volume. Back up that volume and catalogue regularly.
+- Only upload homebrew ROMs you created or are explicitly authorized to distribute. The rights checkbox is a declaration, not copyright verification.
+- Before public launch, add publisher accounts, moderation/takedown workflow, upload quotas, malware/archive inspection, automated tests, and stronger production monitoring.
 
 ## Project structure
-
-- `app/src/main/java/com/sfj3861/gamehub/MainActivity.kt` — Compose UI and local file import.
-- `app/src/main/res/drawable/ic_gamehub.xml` — custom vector app icon.
-- `app/src/main/AndroidManifest.xml` — Android app entry point.
-- `.github/workflows/android.yml` — CI build workflow.
-
-## Planned milestones
-
-1. Verify the Android scaffold builds and installs.
-2. Select and integrate an open-source emulation engine while complying with its licence.
-3. Add persistent library entries, game details, and controller support.
-4. Connect the Juegos catalogue to a versioned metadata feed.
-5. Add verified downloads, compatibility checks, and error recovery.
-6. Test on real Android devices and prepare a signed release.
-
-Only content that is authorized for distribution should be listed in the future catalogue. Engine integration will depend on the target systems, licence obligations, and device compatibility.
+- `app/src/main/java/com/sfj3861/gamehub/MainActivity.kt` — app UI, publish upload, catalogue and download client.
+- `app/src/main/res/drawable/ic_gamehub.xml` — custom vector icon.
+- `server/server.js` — API server.
+- `server/docker-compose.yml` and `server/Dockerfile` — self-hosting deployment.
+- `.github/workflows/android.yml` — Android build workflow.
