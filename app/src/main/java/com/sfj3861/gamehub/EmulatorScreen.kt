@@ -18,12 +18,19 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusable
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 
 private val ScreenBackground = Color(0xFF080D0A)
 private val PixelOn = Color(0xFF9CF56A)
-private val PixelOff = Color(0xFF111D13)
 
 @Composable
 internal fun EmulatorScreen(
@@ -32,8 +39,13 @@ internal fun EmulatorScreen(
     onExit: () -> Unit
 ) {
     var paused by remember(machine) { mutableStateOf(false) }
+    val focusRequester = remember(machine) { FocusRequester() }
     var frameVersion by remember(machine) { mutableIntStateOf(0) }
     val pixels = remember(machine, frameVersion) { machine.displaySnapshot() }
+
+    LaunchedEffect(machine) {
+        focusRequester.requestFocus()
+    }
 
     LaunchedEffect(machine, paused) {
         while (true) {
@@ -47,7 +59,35 @@ internal fun EmulatorScreen(
     }
 
     Column(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .focusRequester(focusRequester)
+            .focusable()
+            .onPreviewKeyEvent { event ->
+                val chipKey = when (event.key) {
+                    Key.One -> 0x1
+                    Key.Two -> 0x2
+                    Key.Three -> 0x3
+                    Key.Four -> 0xC
+                    Key.Q -> 0x4
+                    Key.W -> 0x5
+                    Key.E -> 0x6
+                    Key.R -> 0xD
+                    Key.A -> 0x7
+                    Key.S -> 0x8
+                    Key.D -> 0x9
+                    Key.F -> 0xE
+                    Key.Z -> 0xA
+                    Key.X -> 0x0
+                    Key.C -> 0xB
+                    Key.V -> 0xF
+                    else -> null
+                }
+                if (chipKey == null) false else {
+                    machine.setKey(chipKey, event.type == KeyEventType.KeyDown)
+                    true
+                }
+            },
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Row(
@@ -130,8 +170,11 @@ internal fun EmulatorScreen(
                                     onPress = {
                                         if (!paused && !machine.halted) {
                                             machine.setKey(key, true)
-                                            tryAwaitRelease()
-                                            machine.setKey(key, false)
+                                            try {
+                                                tryAwaitRelease()
+                                            } finally {
+                                                machine.setKey(key, false)
+                                            }
                                         }
                                     }
                                 )
