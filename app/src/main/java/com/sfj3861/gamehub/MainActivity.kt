@@ -701,10 +701,10 @@ private fun SettingsScreen() {
         Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF282442))) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 SettingRow("Interfaz", "Tema oscuro")
-                SettingRow("Controles", "Configuración al integrar el motor")
+                SettingRow("Controles", "Táctiles y teclado físico en CHIP-8")
                 SettingRow("Emulación", "CHIP-8 nativo · otros sistemas pendientes")
                 SettingRow("Nube", "Servidor autohospedado de GameHub")
-                SettingRow("Acerca de", "GameHub 0.3.0 · publicación homebrew")
+                SettingRow("Acerca de", "GameHub 0.4.0 · CHIP-8 + homebrew")
             }
         }
     }
