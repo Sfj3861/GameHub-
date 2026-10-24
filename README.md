@@ -2,7 +2,7 @@
 
 GameHub is an Android-first retro gaming hub with a custom visual identity, a local game-file library, a cloud-connected homebrew catalogue called **Juegos**, and a publisher screen.
 
-## Current status: prototype 0.2.0
+## Current status: prototype 0.3.0
 
 ### Implemented in the Android app
 - Kotlin + Jetpack Compose interface and custom purple/cyan launcher icon.
