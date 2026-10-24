@@ -339,7 +339,7 @@ private fun StoreScreen(onNotice: (String) -> Unit, onPublish: () -> Unit) {
                                 val fullUrl = if (game.downloadUrl.startsWith("https://")) game.downloadUrl else serverUrl.trimEnd('/') + "/" + game.downloadUrl.trimStart('/')
                                 val downloadUri = android.net.Uri.parse(fullUrl)
                                 val baseUri = android.net.Uri.parse(serverUrl)
-                                require(downloadUri.scheme == "https" && downloadUri.host == baseUri.host) {
+                                require(downloadUri.scheme == "https" && downloadUri.host == baseUri.host && downloadUri.port == baseUri.port && downloadUri.userInfo == null) {
                                     "La descarga debe proceder del mismo servidor HTTPS del catálogo."
                                 }
                                 val request = DownloadManager.Request(downloadUri)
