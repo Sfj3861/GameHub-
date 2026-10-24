@@ -139,41 +139,45 @@ private fun GameHubApp(displayName: (Uri) -> String) {
     Scaffold(
         containerColor = Ink,
         topBar = {
-            TopAppBar(
-                title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            Modifier.size(34.dp).background(
-                                Brush.linearGradient(listOf(Purple, Cyan)), RoundedCornerShape(11.dp)
-                            ),
-                            contentAlignment = Alignment.Center
-                        ) { Icon(Icons.Default.Gamepad, contentDescription = null, tint = Ink) }
-                        Spacer(Modifier.size(10.dp))
-                        Column {
-                            Text("GameHub", fontWeight = FontWeight.ExtraBold)
-                            Text("RETRO • HOMEBREW", style = MaterialTheme.typography.labelSmall, color = Muted)
+            if (activeMachine == null) {
+                TopAppBar(
+                    title = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                Modifier.size(34.dp).background(
+                                    Brush.linearGradient(listOf(Purple, Cyan)), RoundedCornerShape(11.dp)
+                                ),
+                                contentAlignment = Alignment.Center
+                            ) { Icon(Icons.Default.Gamepad, contentDescription = null, tint = Ink) }
+                            Spacer(Modifier.size(10.dp))
+                            Column {
+                                Text("GameHub", fontWeight = FontWeight.ExtraBold)
+                                Text("RETRO • HOMEBREW", style = MaterialTheme.typography.labelSmall, color = Muted)
+                            }
                         }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Ink)
-            )
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Ink)
+                )
+            }
         },
         bottomBar = {
-            NavigationBar(containerColor = Color(0xFF211E3B)) {
-                val tabs = listOf(
-                    HubTab.HOME to Icons.Default.Home,
-                    HubTab.LIBRARY to Icons.Default.LibraryBooks,
-                    HubTab.STORE to Icons.Default.Storefront,
-                    HubTab.DOWNLOADS to Icons.Default.Download,
-                    HubTab.SETTINGS to Icons.Default.Settings
-                )
-                tabs.forEach { (item, icon) ->
-                    NavigationBarItem(
-                        selected = tab == item,
-                        onClick = { tab = item },
-                        icon = { Icon(icon, contentDescription = item.title) },
-                        label = { Text(item.title, maxLines = 1) }
+            if (activeMachine == null) {
+                NavigationBar(containerColor = Color(0xFF211E3B)) {
+                    val tabs = listOf(
+                        HubTab.HOME to Icons.Default.Home,
+                        HubTab.LIBRARY to Icons.Default.LibraryBooks,
+                        HubTab.STORE to Icons.Default.Storefront,
+                        HubTab.DOWNLOADS to Icons.Default.Download,
+                        HubTab.SETTINGS to Icons.Default.Settings
                     )
+                    tabs.forEach { (item, icon) ->
+                        NavigationBarItem(
+                            selected = tab == item,
+                            onClick = { tab = item },
+                            icon = { Icon(icon, contentDescription = item.title) },
+                            label = { Text(item.title, maxLines = 1) }
+                        )
+                    }
                 }
             }
         }
