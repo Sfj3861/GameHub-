@@ -27,6 +27,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -394,12 +395,13 @@ private fun formatBytes(bytes: Long): String = when {
 @Composable
 private fun PublishScreen() {
     val context = LocalContext.current
+    val preferences = remember(context) { context.getSharedPreferences("gamehub_preferences", Context.MODE_PRIVATE) }
     val scope = rememberCoroutineScope()
     var title by remember { mutableStateOf("") }
     var author by remember { mutableStateOf("") }
     var version by remember { mutableStateOf("1.0") }
     var description by remember { mutableStateOf("") }
-    var serverUrl by remember { mutableStateOf("") }
+    var serverUrl by remember { mutableStateOf(preferences.getString("publish_server_url", "") ?: "") }
     var token by remember { mutableStateOf("") }
     var consoleIndex by remember { mutableIntStateOf(2) }
     var selectedUri by remember { mutableStateOf<Uri?>(null) }
@@ -452,7 +454,10 @@ private fun PublishScreen() {
         }
         item {
             OutlinedTextField(
-                value = serverUrl, onValueChange = { serverUrl = it.trim() },
+                value = serverUrl, onValueChange = {
+                    serverUrl = it.trim()
+                    preferences.edit().putString("publish_server_url", serverUrl).apply()
+                },
                 label = { Text("URL del servidor HTTPS *") },
                 placeholder = { Text("https://juegos.tudominio.com") },
                 modifier = Modifier.fillMaxWidth(), singleLine = true
@@ -462,7 +467,8 @@ private fun PublishScreen() {
             OutlinedTextField(
                 value = token, onValueChange = { token = it },
                 label = { Text("Token de publicación *") },
-                modifier = Modifier.fillMaxWidth(), singleLine = true
+                modifier = Modifier.fillMaxWidth(), singleLine = true,
+                visualTransformation = PasswordVisualTransformation()
             )
             Text("No incluyas el token en una APK pública. Para publicar, úsalo solo en tu dispositivo de administración.", color = Muted, style = MaterialTheme.typography.bodySmall)
         }
