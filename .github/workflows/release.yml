@@ -1,4 +1,4 @@
-name: Android Release
+name: Android APK
 
 on:
   push:
@@ -11,8 +11,8 @@ permissions:
   contents: write
 
 jobs:
-  build-and-release:
-    name: Test, build and publish APK
+  build:
+    name: Test and build APK
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -36,15 +36,23 @@ jobs:
       - name: Build installable APK
         run: |
           ./gradlew assembleDebug --no-daemon --stacktrace
-          cp app/build/outputs/apk/debug/app-debug.apk GameHub-v0.4.0.apk
+          cp app/build/outputs/apk/debug/app-debug.apk GameHub-${GITHUB_REF_NAME}.apk
 
-      - name: Publish APK to GitHub Releases
-        if: startsWith(github.ref, 'refs/tags/') || startsWith(github.event.head_commit.message, 'release:')
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GameHub-APK
+          path: GameHub-${GITHUB_REF_NAME}.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Publish APK to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v0.4.0
-          name: GameHub v0.4.0
+          tag_name: ${{ github.ref_name }}
+          name: GameHub ${{ github.ref_name }}
           body: |
-            GameHub 0.4.0 — APK instalable firmado con la clave de depuración de Android.
-            La publicación solo se realiza después de pasar las pruebas y compilar la app.
-          files: GameHub-v0.4.0.apk
+            APK de GameHub generado por GitHub Actions.
+            La publicación solo se realiza si las pruebas y la compilación terminan correctamente.
+          files: GameHub-${{ github.ref_name }}.apk
