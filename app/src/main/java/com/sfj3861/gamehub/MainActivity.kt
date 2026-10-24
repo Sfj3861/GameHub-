@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.delay
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.UUID
@@ -78,13 +79,34 @@ private enum class HubTab(val title: String) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun GameHubApp(displayName: (Uri) -> String) {
+    val context = LocalContext.current
+    val preferences = remember(context) { context.getSharedPreferences("gamehub_preferences", Context.MODE_PRIVATE) }
     var tab by remember { mutableStateOf(HubTab.HOME) }
     var notice by remember { mutableStateOf("Tu centro de juegos retro") }
-    val importedGames = remember { mutableStateListOf<Pair<Uri, String>>() }
+    val importedGames = remember(context) {
+        mutableStateListOf<Pair<Uri, String>>().apply {
+            runCatching {
+                val saved = org.json.JSONArray(preferences.getString("library_items", "[]"))
+                for (i in 0 until saved.length()) {
+                    val item = saved.optJSONObject(i) ?: continue
+                    val uri = Uri.parse(item.optString("uri"))
+                    val name = item.optString("name")
+                    if (uri.scheme != null && name.isNotBlank()) add(uri to name)
+                }
+            }
+        }
+    }
+    fun saveLibrary() {
+        val saved = org.json.JSONArray()
+        importedGames.forEach { (uri, name) -> saved.put(JSONObject().put("uri", uri.toString()).put("name", name)) }
+        preferences.edit().putString("library_items", saved.toString()).apply()
+    }
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
             val name = displayName(uri)
+            runCatching { context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
             if (importedGames.none { it.first == uri }) importedGames.add(uri to name)
+            saveLibrary()
             notice = "Añadido a la biblioteca: $name"
             tab = HubTab.LIBRARY
         }
@@ -246,7 +268,8 @@ private data class CloudGame(
 private fun StoreScreen(onNotice: (String) -> Unit, onPublish: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var serverUrl by remember { mutableStateOf("") }
+    val preferences = remember(context) { context.getSharedPreferences("gamehub_preferences", Context.MODE_PRIVATE) }
+    var serverUrl by remember { mutableStateOf(preferences.getString("catalog_server_url", "") ?: "") }
     var loading by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf("Introduce la URL HTTPS de tu servidor para cargar el catálogo.") }
     val games = remember { mutableStateListOf<CloudGame>() }
@@ -258,7 +281,10 @@ private fun StoreScreen(onNotice: (String) -> Unit, onPublish: () -> Unit) {
         }
         item {
             OutlinedTextField(
-                value = serverUrl, onValueChange = { serverUrl = it.trim() },
+                value = serverUrl, onValueChange = {
+                    serverUrl = it.trim()
+                    preferences.edit().putString("catalog_server_url", serverUrl).apply()
+                },
                 label = { Text("Servidor del catálogo (HTTPS)") },
                 placeholder = { Text("https://juegos.tudominio.com") },
                 modifier = Modifier.fillMaxWidth(), singleLine = true
@@ -308,8 +334,13 @@ private fun StoreScreen(onNotice: (String) -> Unit, onPublish: () -> Unit) {
                     Button(
                         onClick = {
                             runCatching {
-                                val fullUrl = if (game.downloadUrl.startsWith("http")) game.downloadUrl else serverUrl.trimEnd('/') + "/" + game.downloadUrl.trimStart('/')
-                                val request = DownloadManager.Request(android.net.Uri.parse(fullUrl))
+                                val fullUrl = if (game.downloadUrl.startsWith("https://")) game.downloadUrl else serverUrl.trimEnd('/') + "/" + game.downloadUrl.trimStart('/')
+                                val downloadUri = android.net.Uri.parse(fullUrl)
+                                val baseUri = android.net.Uri.parse(serverUrl)
+                                require(downloadUri.scheme == "https" && downloadUri.host == baseUri.host) {
+                                    "La descarga debe proceder del mismo servidor HTTPS del catálogo."
+                                }
+                                val request = DownloadManager.Request(downloadUri)
                                     .setTitle(game.title)
                                     .setDescription("Descargando desde GameHub")
                                     .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
@@ -540,11 +571,63 @@ private fun uploadRom(
     }
 }
 
+private data class DownloadStatusItem(val id: Long, val title: String, val status: String, val downloaded: Long, val total: Long)
+
 @Composable
 private fun DownloadsScreen() {
+    val context = LocalContext.current
+    val manager = remember(context) { context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager }
+    val downloads = remember { mutableStateListOf<DownloadStatusItem>() }
+    LaunchedEffect(manager) {
+        while (true) {
+            val query = DownloadManager.Query().setFilterByStatus(
+                DownloadManager.STATUS_PENDING or DownloadManager.STATUS_RUNNING or DownloadManager.STATUS_PAUSED or
+                    DownloadManager.STATUS_SUCCESSFUL or DownloadManager.STATUS_FAILED
+            )
+            manager.query(query)?.use { cursor ->
+                val fresh = mutableListOf<DownloadStatusItem>()
+                val idColumn = cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_ID)
+                val titleColumn = cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_TITLE)
+                val statusColumn = cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS)
+                val downloadedColumn = cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR)
+                val totalColumn = cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_TOTAL_SIZE_BYTES)
+                while (cursor.moveToNext()) {
+                    val statusText = when (cursor.getInt(statusColumn)) {
+                        DownloadManager.STATUS_PENDING -> "En cola"
+                        DownloadManager.STATUS_RUNNING -> "Descargando"
+                        DownloadManager.STATUS_PAUSED -> "Pausada"
+                        DownloadManager.STATUS_SUCCESSFUL -> "Completada"
+                        DownloadManager.STATUS_FAILED -> "Error de descarga"
+                        else -> "Estado desconocido"
+                    }
+                    fresh.add(DownloadStatusItem(cursor.getLong(idColumn), cursor.getString(titleColumn) ?: "Archivo", statusText, cursor.getLong(downloadedColumn), cursor.getLong(totalColumn)))
+                }
+                downloads.clear()
+                downloads.addAll(fresh)
+            }
+            delay(1500)
+        }
+    }
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Descargas", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-        EmptyCard("Sin descargas registradas", "Las descargas iniciadas desde la tienda aparecerán en la carpeta Descargas de Android.")
+        if (downloads.isEmpty()) {
+            EmptyCard("Sin descargas registradas", "Las descargas iniciadas desde la tienda aparecerán aquí y en la carpeta Descargas de Android.")
+        } else {
+            LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(downloads, key = { it.id }) { download ->
+                    Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF282442)), shape = RoundedCornerShape(16.dp)) {
+                        Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(download.title, fontWeight = FontWeight.SemiBold)
+                            Text(download.status, color = Cyan, style = MaterialTheme.typography.bodySmall)
+                            if (download.total > 0L) {
+                                LinearProgressIndicator(progress = (download.downloaded.toFloat() / download.total.toFloat()).coerceIn(0f, 1f), modifier = Modifier.fillMaxWidth())
+                                Text("${formatBytes(download.downloaded)} de ${formatBytes(download.total)}", color = Muted, style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
