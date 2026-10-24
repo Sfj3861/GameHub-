@@ -36,6 +36,7 @@ import kotlinx.coroutines.delay
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.UUID
+import java.util.Locale
 import org.json.JSONObject
 
 private val Ink = Color(0xFF17152F)
@@ -386,9 +387,9 @@ private fun fetchCloudGames(baseUrl: String): List<CloudGame> {
     } finally { connection.disconnect() }
 }
 
-private fun formatBytes(bytes: Long): String = when {
-    bytes >= 1024L * 1024L -> "${"%.1f".format(bytes / (1024.0 * 1024.0))} MiB"
-    bytes >= 1024L -> "${"%.1f".format(bytes / 1024.0)} KiB"
+internal fun formatBytes(bytes: Long): String = when {
+    bytes >= 1024L * 1024L -> "${String.format(Locale.ROOT, "%.1f", bytes / (1024.0 * 1024.0))} MiB"
+    bytes >= 1024L -> "${String.format(Locale.ROOT, "%.1f", bytes / 1024.0)} KiB"
     else -> "$bytes B"
 }
 
@@ -647,7 +648,7 @@ private fun SettingsScreen() {
                 SettingRow("Controles", "Configuración al integrar el motor")
                 SettingRow("Emulación", "Motor pendiente de integrar")
                 SettingRow("Nube", "Servidor autohospedado de GameHub")
-                SettingRow("Acerca de", "GameHub 0.2.0 · publicación homebrew")
+                SettingRow("Acerca de", "GameHub 0.3.0 · publicación homebrew")
             }
         }
     }
