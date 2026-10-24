@@ -1,6 +1,9 @@
 package com.sfj3861.gamehub
 
 import android.content.Context
+import android.app.DownloadManager
+import android.os.Environment
+import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.provider.OpenableColumns
@@ -31,6 +34,7 @@ import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.UUID
+import org.json.JSONObject
 
 private val Ink = Color(0xFF17152F)
 private val Purple = Color(0xFF7658F5)
@@ -230,21 +234,127 @@ private fun LibraryScreen(games: List<String>, onImport: () -> Unit, onSelect: (
     }
 }
 
+private data class CloudGame(
+    val id: String, val title: String, val console: String, val author: String,
+    val version: String, val description: String, val size: Long, val downloadUrl: String
+)
+
 @Composable
 private fun StoreScreen(onNotice: (String) -> Unit, onPublish: () -> Unit) {
-    Text("Juegos", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-    Text("Homebrew seleccionado para descubrir nuevos proyectos.", color = Muted)
-    Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF282442))) {
-        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("Catálogo en preparación", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            Text("La API en la nube ya tiene una estructura inicial. Cuando se despliegue y configures su dirección, aquí podremos cargar las publicaciones reales.", color = Muted)
-            Button(onClick = onPublish) { Icon(Icons.Default.CloudUpload, null); Spacer(Modifier.size(8.dp)); Text("Publicar un homebrew") }
-            TextButton(onClick = { onNotice("La tienda necesita que se despliegue el servidor de GameHub y se configure su URL.") }) {
-                Text("Estado de conexión")
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var serverUrl by remember { mutableStateOf("") }
+    var loading by remember { mutableStateOf(false) }
+    var status by remember { mutableStateOf("Introduce la URL HTTPS de tu servidor para cargar el catálogo.") }
+    val games = remember { mutableStateListOf<CloudGame>() }
+
+    LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(bottom = 18.dp)) {
+        item {
+            Text("Juegos", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+            Text("Homebrew compartido por la comunidad.", color = Muted)
+        }
+        item {
+            OutlinedTextField(
+                value = serverUrl, onValueChange = { serverUrl = it.trim() },
+                label = { Text("Servidor del catálogo (HTTPS)") },
+                placeholder = { Text("https://juegos.tudominio.com") },
+                modifier = Modifier.fillMaxWidth(), singleLine = true
+            )
+            Button(
+                enabled = !loading && serverUrl.startsWith("https://"),
+                onClick = {
+                    loading = true
+                    status = "Cargando catálogo…"
+                    scope.launch {
+                        try {
+                            val result = withContext(Dispatchers.IO) { fetchCloudGames(serverUrl) }
+                            games.clear()
+                            games.addAll(result)
+                            status = if (result.isEmpty()) "El catálogo está vacío. ¡Puedes publicar el primer homebrew!" else "Se han encontrado ${result.size} juegos."
+                        } catch (e: Exception) {
+                            status = "No se pudo cargar el catálogo: ${e.message ?: "error de conexión"}"
+                        }
+                        loading = false
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (loading) CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                else Icon(Icons.Default.Refresh, null)
+                Spacer(Modifier.size(8.dp))
+                Text("Cargar catálogo")
+            }
+        }
+        item {
+            Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF282442))) {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(status, color = Muted)
+                    OutlinedButton(onClick = onPublish, modifier = Modifier.fillMaxWidth()) {
+                        Icon(Icons.Default.CloudUpload, null); Spacer(Modifier.size(8.dp)); Text("Publicar un homebrew")
+                    }
+                }
+            }
+        }
+        items(games, key = { it.id }) { game ->
+            Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF282442)), shape = RoundedCornerShape(18.dp)) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(game.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text("${game.console} · v${game.version} · ${formatBytes(game.size)}", color = Cyan, style = MaterialTheme.typography.bodySmall)
+                    if (game.author.isNotBlank()) Text("Por ${game.author}", color = Muted, style = MaterialTheme.typography.bodySmall)
+                    if (game.description.isNotBlank()) Text(game.description, color = Muted)
+                    Button(
+                        onClick = {
+                            runCatching {
+                                val fullUrl = if (game.downloadUrl.startsWith("http")) game.downloadUrl else serverUrl.trimEnd('/') + "/" + game.downloadUrl.trimStart('/')
+                                val request = DownloadManager.Request(android.net.Uri.parse(fullUrl))
+                                    .setTitle(game.title)
+                                    .setDescription("Descargando desde GameHub")
+                                    .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                                    .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "GameHub/${game.title.replace(Regex("[^A-Za-z0-9._-]"), "_")}")
+                                val manager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+                                manager.enqueue(request)
+                                onNotice("Descarga iniciada: ${game.title}")
+                            }.onFailure { status = "No se pudo iniciar la descarga: ${it.message}" }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Download, null); Spacer(Modifier.size(8.dp)); Text("Descargar")
+                    }
+                }
             }
         }
     }
-    EmptyCard("Comparte tus creaciones", "Publica únicamente juegos y ROMs que tengas derecho a distribuir.")
+}
+
+private fun fetchCloudGames(baseUrl: String): List<CloudGame> {
+    val connection = (URL(baseUrl.trimEnd('/') + "/api/games").openConnection() as HttpURLConnection).apply {
+        requestMethod = "GET"
+        connectTimeout = 15000
+        readTimeout = 20000
+        setRequestProperty("Accept", "application/json")
+    }
+    try {
+        val code = connection.responseCode
+        val body = (if (code in 200..299) connection.inputStream else connection.errorStream)
+            ?.bufferedReader()?.use { it.readText() }.orEmpty()
+        if (code !in 200..299) throw IllegalStateException("HTTP $code: ${body.take(160)}")
+        val array = JSONObject(body).optJSONArray("games") ?: return emptyList()
+        return (0 until array.length()).mapNotNull { i ->
+            val item = array.optJSONObject(i) ?: return@mapNotNull null
+            CloudGame(
+                id = item.optString("id"), title = item.optString("title", "Juego sin nombre"),
+                console = item.optString("console", "Other"), author = item.optString("author"),
+                version = item.optString("version", "1.0"), description = item.optString("description"),
+                size = item.optLong("size", 0L), downloadUrl = item.optString("downloadUrl")
+            )
+        }
+    } finally { connection.disconnect() }
+}
+
+private fun formatBytes(bytes: Long): String = when {
+    bytes >= 1024L * 1024L -> "${"%.1f".format(bytes / (1024.0 * 1024.0))} MiB"
+    bytes >= 1024L -> "${"%.1f".format(bytes / 1024.0)} KiB"
+    else -> "$bytes B"
 }
 
 @Composable
