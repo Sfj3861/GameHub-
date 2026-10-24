@@ -21,11 +21,13 @@ The self-hosted API is in [server/](server/README.md). It accepts authenticated 
 
 ### Build Android APK
 
-Requirements: JDK 17 and Gradle 8.9.
+Requirements: JDK 17. The Gradle 8.9 wrapper is included; no system Gradle installation is needed.
 
 ```bash
-gradle assembleDebug
+./gradlew assembleDebug
 ```
+
+On Windows, run `gradlew.bat assembleDebug`.
 
 Output: `app/build/outputs/apk/debug/app-debug.apk`.
 
