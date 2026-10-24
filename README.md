@@ -7,11 +7,12 @@ GameHub is an Android-first retro gaming hub with a custom visual identity, a lo
 ### Implemented in the Android app
 - Kotlin + Jetpack Compose interface and custom purple/cyan launcher icon.
 - Navigation for Inicio, Biblioteca, Juegos, Descargas, and Ajustes.
-- Local file picker for adding files to the library list.
+- Local file picker with persisted library metadata and persisted document access when Android grants it.
 - **Publicar** form: game title, console, author, version, description, ROM file, server URL, publisher token, and rights confirmation.
 - Multipart upload from Android to the cloud API over HTTPS.
 - Catalogue loading from the cloud API.
-- Download buttons using Android DownloadManager.
+- Download buttons using Android DownloadManager, plus a live status/progress list in Descargas.
+- Catalogue and publishing server URLs are remembered locally; the publisher token is masked and is not saved.
 
 ### Cloud API
 The self-hosted API is in [server/](server/README.md). It accepts authenticated ROM uploads, records metadata and a SHA-256 hash, exposes a public catalogue, and serves published files for download. It is designed for a server with persistent storage and HTTPS.
@@ -28,7 +29,7 @@ gradle assembleDebug
 
 Output: `app/build/outputs/apk/debug/app-debug.apk`.
 
-GitHub Actions is configured to build a debug APK and upload it as a workflow artifact. A successful build has not yet been confirmed from this development session.
+GitHub Actions is configured to build a debug APK and upload it as a workflow artifact. GitHub Actions runs Android unit tests, validates the cloud API JavaScript syntax, builds the debug APK, and uploads it as a workflow artifact. A successful build still needs to be confirmed from the Actions run.
 
 ### Important limitations
 - **Emulation is not integrated yet:** importing a file does not run it. The compatible engine/core still needs to be selected and integrated.
