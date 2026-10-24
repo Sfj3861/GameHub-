@@ -1,0 +1,15 @@
+services:
+  gamehub-api:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: "8080"
+      DATA_DIR: /data
+      PUBLISH_TOKEN: ${PUBLISH_TOKEN:?Set PUBLISH_TOKEN in the server environment}
+      MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-268435456}
+    volumes:
+      - gamehub_data:/data
+volumes:
+  gamehub_data:
