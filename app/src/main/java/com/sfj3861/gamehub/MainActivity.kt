@@ -74,6 +74,24 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+private fun readChip8Rom(context: Context, uri: Uri): ByteArray {
+    val limit = Chip8Machine.MAX_PROGRAM_SIZE
+    val buffer = ByteArray(limit + 1)
+    var total = 0
+    context.contentResolver.openInputStream(uri)?.use { input ->
+        while (total < buffer.size) {
+            val count = input.read(buffer, total, buffer.size - total)
+            if (count < 0) break
+            if (count == 0) continue
+            total += count
+        }
+    } ?: throw IllegalStateException("Android no pudo abrir el archivo.")
+    require(total in 1..limit) {
+        if (total == 0) "El archivo está vacío." else "La ROM CHIP-8 supera el límite de $limit bytes."
+    }
+    return buffer.copyOf(total)
+}
+
 private enum class HubTab(val title: String) {
     HOME("Inicio"), LIBRARY("Biblioteca"), STORE("Juegos"), DOWNLOADS("Descargas"), SETTINGS("Ajustes"), PUBLISH("Publicar")
 }
@@ -85,6 +103,10 @@ private fun GameHubApp(displayName: (Uri) -> String) {
     val preferences = remember(context) { context.getSharedPreferences("gamehub_preferences", Context.MODE_PRIVATE) }
     var tab by remember { mutableStateOf(HubTab.HOME) }
     var notice by remember { mutableStateOf("Tu centro de juegos retro") }
+    var activeMachine by remember { mutableStateOf<Chip8Machine?>(null) }
+    var activeRomName by remember { mutableStateOf("") }
+    var loadingRom by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
     val importedGames = remember(context) {
         mutableStateListOf<Pair<Uri, String>>().apply {
             runCatching {
@@ -159,7 +181,13 @@ private fun GameHubApp(displayName: (Uri) -> String) {
         Box(
             Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp)
         ) {
-            when (tab) {
+            if (activeMachine != null) {
+                EmulatorScreen(
+                    machine = activeMachine!!,
+                    romName = activeRomName,
+                    onExit = { activeMachine = null; tab = HubTab.LIBRARY }
+                )
+            } else when (tab) {
                 HubTab.HOME -> HomeScreen(
                     importedCount = importedGames.size, notice = notice,
                     onImport = { importLauncher.launch(arrayOf("*/*")) },
@@ -167,9 +195,29 @@ private fun GameHubApp(displayName: (Uri) -> String) {
                     onPublish = { tab = HubTab.PUBLISH }
                 )
                 HubTab.LIBRARY -> LibraryScreen(
-                    games = importedGames.map { it.second },
+                    games = importedGames.toList(),
                     onImport = { importLauncher.launch(arrayOf("*/*")) },
-                    onSelect = { notice = "Archivo seleccionado: $it. El motor de emulación aún debe integrarse." }
+                    onSelect = { game ->
+                        val extension = game.second.substringAfterLast('.', "").lowercase(Locale.ROOT)
+                        if (extension !in setOf("ch8", "c8", "chip8")) {
+                            notice = "Formato aún no compatible: ${game.second}. GameHub ejecuta ahora ROMs CHIP-8 (.ch8, .c8, .chip8)."
+                        } else {
+                            loadingRom = true
+                            notice = "Cargando ${game.second}…"
+                            scope.launch {
+                                try {
+                                    val bytes = withContext(Dispatchers.IO) { readChip8Rom(context, game.first) }
+                                    activeRomName = game.second
+                                    activeMachine = Chip8Machine(bytes)
+                                    notice = "Ejecutando ${game.second}"
+                                } catch (e: Exception) {
+                                    notice = "No se pudo abrir la ROM: ${e.message ?: "archivo no válido"}"
+                                } finally {
+                                    loadingRom = false
+                                }
+                            }
+                        }
+                    }
                 )
                 HubTab.STORE -> StoreScreen(
                     onNotice = { notice = it }, onPublish = { tab = HubTab.PUBLISH }
@@ -237,22 +285,22 @@ private fun StatCard(title: String, value: String, modifier: Modifier, onClick: 
 }
 
 @Composable
-private fun LibraryScreen(games: List<String>, onImport: () -> Unit, onSelect: (String) -> Unit) {
+private fun LibraryScreen(games: List<Pair<Uri, String>>, onImport: () -> Unit, onSelect: (Pair<Uri, String>) -> Unit) {
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text("Tu biblioteca", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-        Text("Los archivos que importes aparecerán aquí.", color = Muted)
+        Text("GameHub ejecuta ROMs CHIP-8 (.ch8, .c8, .chip8). Otros sistemas están en desarrollo.", color = Muted)
         Button(onClick = onImport) { Text("＋ Importar archivo") }
         if (games.isEmpty()) {
             EmptyCard("Todavía no hay juegos", "Importa un archivo compatible para preparar tu biblioteca.")
         } else {
             LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(games) { game ->
+                items(games, key = { it.first.toString() }) { game ->
                     Card(Modifier.fillMaxWidth().clickable { onSelect(game) },
                         colors = CardDefaults.cardColors(containerColor = Color(0xFF282442))) {
                         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.Gamepad, null, tint = Cyan, modifier = Modifier.size(30.dp))
                             Spacer(Modifier.size(12.dp))
-                            Text(game, fontWeight = FontWeight.SemiBold)
+                            Text(game.second, fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
@@ -646,7 +694,7 @@ private fun SettingsScreen() {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 SettingRow("Interfaz", "Tema oscuro")
                 SettingRow("Controles", "Configuración al integrar el motor")
-                SettingRow("Emulación", "Motor pendiente de integrar")
+                SettingRow("Emulación", "CHIP-8 nativo · otros sistemas pendientes")
                 SettingRow("Nube", "Servidor autohospedado de GameHub")
                 SettingRow("Acerca de", "GameHub 0.3.0 · publicación homebrew")
             }
