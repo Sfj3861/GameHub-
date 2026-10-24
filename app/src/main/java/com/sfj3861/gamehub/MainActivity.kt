@@ -132,11 +132,9 @@ private fun GameHubApp(displayName: (Uri) -> String) {
             }
         }
     ) { padding ->
-        Column(
-            Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+        Box(
+            Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp)
         ) {
-            Spacer(Modifier.height(2.dp))
             when (tab) {
                 HubTab.HOME -> HomeScreen(
                     importedCount = importedGames.size, notice = notice,
@@ -216,18 +214,23 @@ private fun StatCard(title: String, value: String, modifier: Modifier, onClick: 
 
 @Composable
 private fun LibraryScreen(games: List<String>, onImport: () -> Unit, onSelect: (String) -> Unit) {
-    Text("Tu biblioteca", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-    Text("Los archivos que importes aparecerán aquí.", color = Muted)
-    Button(onClick = onImport) { Text("＋ Importar archivo") }
-    if (games.isEmpty()) EmptyCard("Todavía no hay juegos", "Importa un archivo compatible para preparar tu biblioteca.")
-    else LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        items(games) { game ->
-            Card(Modifier.fillMaxWidth().clickable { onSelect(game) },
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF282442))) {
-                Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Gamepad, null, tint = Cyan, modifier = Modifier.size(30.dp))
-                    Spacer(Modifier.size(12.dp))
-                    Text(game, fontWeight = FontWeight.SemiBold)
+    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text("Tu biblioteca", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        Text("Los archivos que importes aparecerán aquí.", color = Muted)
+        Button(onClick = onImport) { Text("＋ Importar archivo") }
+        if (games.isEmpty()) {
+            EmptyCard("Todavía no hay juegos", "Importa un archivo compatible para preparar tu biblioteca.")
+        } else {
+            LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(games) { game ->
+                    Card(Modifier.fillMaxWidth().clickable { onSelect(game) },
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF282442))) {
+                        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Gamepad, null, tint = Cyan, modifier = Modifier.size(30.dp))
+                            Spacer(Modifier.size(12.dp))
+                            Text(game, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
                 }
             }
         }
@@ -539,20 +542,24 @@ private fun uploadRom(
 
 @Composable
 private fun DownloadsScreen() {
-    Text("Descargas", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-    EmptyCard("No hay descargas", "La tienda descargable se conectará al catálogo publicado en tu servidor.")
+    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text("Descargas", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        EmptyCard("Sin descargas registradas", "Las descargas iniciadas desde la tienda aparecerán en la carpeta Descargas de Android.")
+    }
 }
 
 @Composable
 private fun SettingsScreen() {
-    Text("Ajustes", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-    Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF282442))) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            SettingRow("Interfaz", "Tema oscuro")
-            SettingRow("Controles", "Configuración al integrar el motor")
-            SettingRow("Emulación", "Motor pendiente de integrar")
-            SettingRow("Nube", "Servidor autohospedado de GameHub")
-            SettingRow("Acerca de", "GameHub 0.2.0 · publicación homebrew")
+    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text("Ajustes", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF282442))) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                SettingRow("Interfaz", "Tema oscuro")
+                SettingRow("Controles", "Configuración al integrar el motor")
+                SettingRow("Emulación", "Motor pendiente de integrar")
+                SettingRow("Nube", "Servidor autohospedado de GameHub")
+                SettingRow("Acerca de", "GameHub 0.2.0 · publicación homebrew")
+            }
         }
     }
 }
