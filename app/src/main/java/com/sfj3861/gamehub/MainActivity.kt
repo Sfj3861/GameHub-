@@ -560,8 +560,8 @@ private fun uploadRom(
         val body = (if (code in 200..299) connection.inputStream else connection.errorStream)
             ?.bufferedReader()?.use { it.readText() }.orEmpty()
         if (code in 200..299) {
-            val id = Regex("\"id\"\\s*:\\s*\"([^\"]+)\"").find(body)?.groupValues?.getOrNull(1)
-            "Publicado correctamente en la nube. ID: ${id ?: "disponible en el catálogo"}. Comprueba el catálogo público del servidor."
+            val id = runCatching { JSONObject(body).optJSONObject("game")?.optString("id") }.getOrNull()
+            "Publicado correctamente en la nube. ID: ${id?.takeIf { it.isNotBlank() } ?: "disponible en el catálogo"}. Comprueba el catálogo público del servidor."
         } else {
             val message = Regex("\"error\"\\s*:\\s*\"([^\"]+)\"").find(body)?.groupValues?.getOrNull(1)
             "Error HTTP $code: ${message ?: body.take(240)}"
