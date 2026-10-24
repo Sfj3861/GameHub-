@@ -195,7 +195,7 @@ private fun GameHubApp(displayName: (Uri) -> String) {
                     onPublish = { tab = HubTab.PUBLISH }
                 )
                 HubTab.LIBRARY -> LibraryScreen(
-                    games = importedGames.toList(),
+                    games = importedGames.toList(), notice = notice, loading = loadingRom,
                     onImport = { importLauncher.launch(arrayOf("*/*")) },
                     onSelect = { game ->
                         val extension = game.second.substringAfterLast('.', "").lowercase(Locale.ROOT)
@@ -285,10 +285,18 @@ private fun StatCard(title: String, value: String, modifier: Modifier, onClick: 
 }
 
 @Composable
-private fun LibraryScreen(games: List<Pair<Uri, String>>, onImport: () -> Unit, onSelect: (Pair<Uri, String>) -> Unit) {
+private fun LibraryScreen(
+    games: List<Pair<Uri, String>>,
+    notice: String,
+    loading: Boolean,
+    onImport: () -> Unit,
+    onSelect: (Pair<Uri, String>) -> Unit
+) {
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text("Tu biblioteca", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
         Text("GameHub ejecuta ROMs CHIP-8 (.ch8, .c8, .chip8). Otros sistemas están en desarrollo.", color = Muted)
+        Text(notice, color = Cyan, style = MaterialTheme.typography.bodySmall)
+        if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
         Button(onClick = onImport) { Text("＋ Importar archivo") }
         if (games.isEmpty()) {
             EmptyCard("Todavía no hay juegos", "Importa un archivo compatible para preparar tu biblioteca.")
