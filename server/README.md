@@ -21,9 +21,9 @@ The persistent Docker volume `gamehub_data` stores ROM files and `catalog.json`.
 - `POST /api/publish` — publisher-authenticated multipart upload. Fields: `title`, `console`, `author`, `version`, `description`, `rightsConfirmed=true`, and file field `rom`. Requires `Authorization: Bearer <PUBLISH_TOKEN>`.
 - `GET /api/games/:id/download` — download a published file.
 
-Supported console labels: Game Boy, Game Boy Color, Game Boy Advance, NES, SNES, Nintendo 64, Nintendo DS, Sega Master System, Mega Drive / Genesis, PlayStation, PSP, Other.
+Supported console labels: Game Boy, Game Boy Color, Game Boy Advance, NES, SNES, Nintendo 64, Nintendo DS, Sega Master System, Mega Drive / Genesis, PlayStation, PSP, CHIP-8, Other.
 
-Uploads are limited to 256 MiB by default and filtered by file extension. The server calculates SHA-256 and records it in catalogue metadata. This is not malware scanning or a proof of copyright ownership. The publisher must have rights to distribute each upload. Do not upload commercial ROMs or copyrighted game dumps without permission.
+Uploads are limited to 256 MiB by default and filtered by file extension, including `.ch8`, `.c8` and `.chip8` for CHIP-8. The server calculates SHA-256 and records it in catalogue metadata. This is not malware scanning or a proof of copyright ownership. The publisher must have rights to distribute each upload. Do not upload commercial ROMs or copyrighted game dumps without permission.
 
 ## Production hardening
 
